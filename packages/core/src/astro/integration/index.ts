@@ -219,9 +219,16 @@ export function buildImageRemotePatterns(
  * reads (routes, middleware) MUST be listed here — an option only on
  * `EmDashConfig` is invisible at runtime and silently ignored.
  *
+ * Cloudflare Workers Free has a tight CPU limit, so server-side blurhash /
+ * dominant-color generation defaults to `false` there. Every other runtime
+ * keeps the backwards-compatible default of `true`.
+ *
  * @internal Exported for unit testing.
  */
-export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<string, unknown> {
+export function buildSerializableConfig(
+	resolvedConfig: EmDashConfig,
+	isCloudflare = false,
+): Record<string, unknown> {
 	return {
 		database: resolvedConfig.database,
 		migrations: resolvedConfig.migrations,
@@ -233,6 +240,7 @@ export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<st
 		siteUrl: resolvedConfig.siteUrl,
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
 		maxUploadSize: resolvedConfig.maxUploadSize,
+		imagePlaceholders: resolvedConfig.imagePlaceholders ?? !isCloudflare,
 		admin: resolvedConfig.admin,
 		toolbar: resolvedConfig.toolbar,
 		updateCheck: resolvedConfig.updateCheck,
@@ -603,10 +611,6 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	// Resolved plugins (populated at build time by importing entrypoints)
 	let _resolvedPlugins: ResolvedPlugin[] = [];
 
-	// Serialize config for virtual module (database/storage/auth - plugins handled separately)
-	// i18n is populated in astro:config:setup from astroConfig.i18n
-	const serializableConfig = buildSerializableConfig(resolvedConfig);
-
 	// Determine auth mode for route injection
 	// Check if auth is an AuthDescriptor (has entrypoint) indicating external auth
 	const useExternalAuth = !!(resolvedConfig.auth && "entrypoint" in resolvedConfig.auth);
@@ -616,6 +620,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	let astroCommand: "dev" | "build" | "preview" | "sync" | undefined;
 	let usesCloudflareAdapter = false;
 	let normalizedI18n: ReturnType<typeof normalizeAstroI18n> = null;
+	let serializableConfig: Record<string, unknown>;
 	const migrationMetadata = createMigrationIntegrationMetadata(resolvedConfig.database);
 
 	const integration: AstroIntegration = {
@@ -631,6 +636,19 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			}) => {
 				astroCommand = command;
 				usesCloudflareAdapter = astroConfig.adapter?.name === "@astrojs/cloudflare";
+
+				// Cloudflare Workers Free has a tight CPU limit; server-side LQIP
+				// generation from full-resolution images is expensive and frequently
+				// exceeds it. Default to disabled on Cloudflare unless the user has
+				// explicitly opted in. Other runtimes keep the existing default of
+				// `true` for backwards compatibility.
+				if (resolvedConfig.imagePlaceholders === undefined) {
+					resolvedConfig.imagePlaceholders = !usesCloudflareAdapter;
+				}
+				// Serialize config for virtual module (database/storage/auth - plugins handled separately)
+				// i18n is populated in astro:config:setup from astroConfig.i18n
+				serializableConfig = buildSerializableConfig(resolvedConfig, usesCloudflareAdapter);
+
 				normalizeRegistryConfig(registry, {
 					allowLocalhost: command === "dev" || command === "sync",
 				});

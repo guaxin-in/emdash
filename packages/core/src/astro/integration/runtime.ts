@@ -438,6 +438,18 @@ export interface EmDashConfig {
 	maxUploadSize?: number;
 
 	/**
+	 * Generate blurhash and dominant-color placeholders during image upload.
+	 *
+	 * Defaults to `true` on most runtimes, but defaults to `false` when
+	 * building for Cloudflare Workers (`@astrojs/cloudflare` adapter) to avoid
+	 * CPU-limit failures on the Workers Free plan. Set to `true` explicitly to
+	 * keep generating server-side LQIP on Cloudflare, or set to `false` on any
+	 * runtime to disable it while preserving dimensions, validation, and
+	 * content hashing.
+	 */
+	imagePlaceholders?: boolean;
+
+	/**
 	 * Public browser-facing origin for the site.
 	 *
 	 * Use when `Astro.url` / `request.url` do not match what users open — common with a

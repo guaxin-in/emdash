@@ -6,6 +6,19 @@ describe("buildSerializableConfig", () => {
 	it("passes the update-check opt-out to the runtime config", () => {
 		expect(buildSerializableConfig({ updateCheck: false }).updateCheck).toBe(false);
 	});
+
+	it("defaults imagePlaceholders to true on non-Cloudflare runtimes", () => {
+		expect(buildSerializableConfig({}).imagePlaceholders).toBe(true);
+	});
+
+	it("defaults imagePlaceholders to false on Cloudflare Workers", () => {
+		expect(buildSerializableConfig({}, true).imagePlaceholders).toBe(false);
+	});
+
+	it("preserves an explicit imagePlaceholders setting over the runtime default", () => {
+		expect(buildSerializableConfig({ imagePlaceholders: true }, true).imagePlaceholders).toBe(true);
+		expect(buildSerializableConfig({ imagePlaceholders: false }).imagePlaceholders).toBe(false);
+	});
 });
 
 describe("updateCheck option", () => {

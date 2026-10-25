@@ -113,8 +113,8 @@ export function readDimensions(buffer: Uint8Array): { width: number; height: num
  *   readDimensions); otherwise dimensions are read from this buffer's header.
  *   Generation is skipped (returns null) when no dimensions are available at
  *   all, or when the decoded size (width * height * 4) exceeds
- *   MAX_DECODED_BYTES — both guards avoid OOM from unbounded decodes on
- *   memory-constrained runtimes.
+ *   MAX_DECODED_BYTES. LQIP is progressive enhancement; missing it is
+ *   preferable to exceeding memory limits.
  */
 export async function generatePlaceholder(
 	buffer: Uint8Array,
@@ -141,7 +141,6 @@ export async function generatePlaceholder(
 		if (dims.width * dims.height * 4 > MAX_DECODED_BYTES) {
 			return null;
 		}
-
 		const imageData = format === "jpeg" ? await decodeJpeg(buffer) : await decodePng(buffer);
 		const { width, height, data } = imageData;
 
